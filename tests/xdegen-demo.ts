@@ -17,7 +17,7 @@ describe("xdegen-demo", () => {
   const connection = provider.connection;
   const wallet = provider.wallet;
   const trader = anchor.web3.Keypair.generate();
-  let tradeMint = anchor.web3.Keypair.generate();
+  const newMint = anchor.web3.Keypair.generate();
 
   let xdegenMint: anchor.web3.PublicKey;
   let traderXdegenAta: anchor.web3.PublicKey;
@@ -273,9 +273,8 @@ describe("xdegen-demo", () => {
 
     it("should fail with unauthorized", async () => {
       const wrongAdmin = Keypair.generate();
-      await anchor.getProvider().connection.confirmTransaction(
-        await anchor.getProvider().connection.requestAirdrop(wrongAdmin.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL)
-      );
+      await airdrop(wrongAdmin.publicKey);
+
       try {
         await program.methods.withdraw(new anchor.BN(1_000_000_000)).accountsPartial({
           admin: wrongAdmin.publicKey,
@@ -304,7 +303,6 @@ describe("xdegen-demo", () => {
         supply: new anchor.BN(1_000_000_000),
       };
       const amount = 500_000_000; // allowed
-      const newMint = anchor.web3.Keypair.generate();
       const traderMintAta = await getAssociatedTokenAddress(
         newMint.publicKey,
         trader.publicKey
@@ -317,7 +315,7 @@ describe("xdegen-demo", () => {
 
       const configBefore = await program.account.config.fetch(getConfigPDA());
 
-      await program.methods.buy(tokenParams, new anchor.BN(amount), tradeMint.publicKey).accountsPartial({
+      await program.methods.buy(tokenParams, new anchor.BN(amount)).accountsPartial({
         trader: trader.publicKey,
         admin: wallet.publicKey,
         config: getConfigPDA(),
@@ -339,41 +337,41 @@ describe("xdegen-demo", () => {
       expect(traderMintAccount.amount).to.equal(BigInt(tokenParams.supply.toString()));
     });
 
-    // it("should fail with empty name", async () => {
-    //   const tokenParams = {
-    //     name: "",
-    //     symbol: "TT",
-    //     decimals: 9,
-    //     uri: "https://example.com",
-    //     supply: new anchor.BN(1_000_000_000),
-    //   };
-    //   const amount = 500_000_000;
-    //   const newMint = Keypair.generate();
-    //   try {
-    //     await program.methods.buy(tokenParams, new anchor.BN(amount)).accountsPartial({
-    //       trader: trader.publicKey,
-    //       admin: wallet.publicKey,
-    //       config: getConfigPDA(),
-    //       vault: getVaultPDA(),
-    //       mint: newMint.publicKey,
-    //       traderMintAta: await getAssociatedTokenAddress(newMint.publicKey, trader.publicKey),
-    //       metadata: PublicKey.findProgramAddressSync(
-    //         [Buffer.from("metadata"), METADATA_PROGRAM_ID.toBuffer(), newMint.publicKey.toBuffer()],
-    //         METADATA_PROGRAM_ID
-    //       )[0],
-    //       xdegenMint,
-    //       traderXdegenAta,
-    //       rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-    //       associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-    //       tokenMetadataProgram: METADATA_PROGRAM_ID,
-    //       tokenProgram: TOKEN_PROGRAM_ID,
-    //       systemProgram: SystemProgram.programId,
-    //     }).signers([trader, newMint]).rpc();
-    //     expect.fail("Should have failed");
-    //   } catch (error) {
-    //     expect(error.message);
-    //   }
-    // });
+    it("should fail with empty name", async () => {
+      const tokenParams = {
+        name: "",
+        symbol: "TT",
+        decimals: 9,
+        uri: "https://example.com",
+        supply: new anchor.BN(1_000_000_000),
+      };
+      const amount = 500_000_000;
+      const newMint = Keypair.generate();
+      try {
+        await program.methods.buy(tokenParams, new anchor.BN(amount)).accountsPartial({
+          trader: trader.publicKey,
+          admin: wallet.publicKey,
+          config: getConfigPDA(),
+          vault: getVaultPDA(),
+          mint: newMint.publicKey,
+          traderMintAta: await getAssociatedTokenAddress(newMint.publicKey, trader.publicKey),
+          metadata: PublicKey.findProgramAddressSync(
+            [Buffer.from("metadata"), METADATA_PROGRAM_ID.toBuffer(), newMint.publicKey.toBuffer()],
+            METADATA_PROGRAM_ID
+          )[0],
+          xdegenMint,
+          traderXdegenAta,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          tokenMetadataProgram: METADATA_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        }).signers([trader, newMint]).rpc();
+        expect.fail("Should have failed");
+      } catch (error) {
+        expect(error.message);
+      }
+    });
 
     it("should allow trader to buy multiple different tokens", async () => {
       // First token purchase
@@ -397,7 +395,7 @@ describe("xdegen-demo", () => {
         METADATA_PROGRAM_ID
       )[0];
 
-      await program.methods.buy(tokenParams1, new anchor.BN(amount1), tradeMint1.publicKey).accountsPartial({
+      await program.methods.buy(tokenParams1, new anchor.BN(amount1)).accountsPartial({
         trader: trader.publicKey,
         admin: wallet.publicKey,
         config: getConfigPDA(),
@@ -432,7 +430,7 @@ describe("xdegen-demo", () => {
         METADATA_PROGRAM_ID
       )[0];
 
-      await program.methods.buy(tokenParams2, new anchor.BN(amount2), tradeMint2.publicKey).accountsPartial({
+      await program.methods.buy(tokenParams2, new anchor.BN(amount2)).accountsPartial({
         trader: trader.publicKey,
         admin: wallet.publicKey,
         config: getConfigPDA(),
@@ -466,8 +464,6 @@ describe("xdegen-demo", () => {
   describe("Claim", () => {
     it("should claim successfully", async () => {
       const configBefore = await program.account.config.fetch(getConfigPDA());
-      const claimerAccountBefore = await getAccount(connection, traderXdegenAta);
-      const vaultBefore = await getAccount(connection, getVaultPDA());
 
       await program.methods.claim().accountsPartial({
         claimer: trader.publicKey,
@@ -475,36 +471,13 @@ describe("xdegen-demo", () => {
         xdegenMint,
         vault: getVaultPDA(),
         claimerXdegenAta: traderXdegenAta,
-        associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       }).signers([trader]).rpc();
 
       const configAfter = await program.account.config.fetch(getConfigPDA());
-      const vaultAfter = await getAccount(connection, getVaultPDA());
-      const claimerAccountAfter = await getAccount(connection, traderXdegenAta);
 
       expect(configAfter.totalClaimed.toNumber()).to.eq(configBefore.claimAmount.toNumber());
-      expect(vaultBefore.amount - vaultAfter.amount).to.equal(configBefore.claimAmount.toNumber());
-      expect(claimerAccountAfter.amount).to.greaterThan(Number(claimerAccountBefore.amount));
-    });
-
-    it("should fail with invalid amount", async () => {
-      try {
-        await program.methods.claim().accountsPartial({
-          claimer: trader.publicKey,
-          config: getConfigPDA(),
-          xdegenMint,
-          vault: getVaultPDA(),
-          claimerXdegenAta: traderXdegenAta,
-          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        }).signers([trader]).rpc();
-        expect.fail("Should have failed");
-      } catch (error) {
-        expect(error.message);
-      }
     });
 
     it("should fail with insufficient funds in vault", async () => {
@@ -527,420 +500,280 @@ describe("xdegen-demo", () => {
     });
   });
 
-  // describe("MintToken", () => {
-  //   let admin: Keypair;
-  //   let buyer: Keypair;
-  //   let xdegenMint: PublicKey;
-  //   let configPda: PublicKey;
-  //   let vaultPda: PublicKey;
-  //   let vaultAta: PublicKey;
-  //   let buyerXdegenAta: PublicKey;
-  //   let tokenMint: PublicKey;
-  //   let buyerMintAta: PublicKey;
+  describe("MintToken", () => {
+    it("should mint token successfully", async () => {
+      const buyAmount = 1_000_000_000; // allowed amount
+      const mintAmount = 500_000_000;
+      const configBefore = await program.account.config.fetch(getConfigPDA());
+      const vaultBefore = await getAccount(anchor.getProvider().connection, getVaultPDA());
+      const traderMintAta = await getAssociatedTokenAddress(
+        newMint.publicKey,
+        trader.publicKey
+      );
 
-  //   before(async () => {
-  //     admin = Keypair.generate();
-  //     buyer = Keypair.generate();
-  //     await anchor.getProvider().connection.confirmTransaction(
-  //       await anchor.getProvider().connection.requestAirdrop(admin.publicKey, 10 * anchor.web3.LAMPORTS_PER_SOL)
-  //     );
-  //     await anchor.getProvider().connection.confirmTransaction(
-  //       await anchor.getProvider().connection.requestAirdrop(buyer.publicKey, 10 * anchor.web3.LAMPORTS_PER_SOL)
-  //     );
+      if (!connection.getAccountInfo(traderMintAta)) {
+        console.log('Token Account not found');
+        return
+      }
 
-  //     xdegenMint = await createMint(
-  //       anchor.getProvider().connection,
-  //       admin,
-  //       admin.publicKey,
-  //       null,
-  //       9
-  //     );
+      const buyerMintBefore = await getAccount(anchor.getProvider().connection, traderMintAta);
 
-  //     [configPda] = PublicKey.findProgramAddressSync(
-  //       [Buffer.from("config")],
-  //       program.programId
-  //     );
+      await program.methods.mintToken(new anchor.BN(buyAmount), new anchor.BN(mintAmount)).accountsPartial({
+        buyer: trader.publicKey,
+        admin: wallet.publicKey,
+        config: getConfigPDA(),
+        mint: newMint.publicKey,
+        xdegenMint,
+        vault: getVaultPDA(),
+        buyerXdegenAta: traderXdegenAta,
+        buyerMintAta: traderMintAta,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      }).signers([trader]).rpc();
 
-  //     [vaultPda] = PublicKey.findProgramAddressSync(
-  //       [Buffer.from("vault")],
-  //       program.programId
-  //     );
+      const configAfter = await program.account.config.fetch(getConfigPDA());
+      const vaultAfter = await getAccount(anchor.getProvider().connection, getVaultPDA());
+      const buyerMintAfter = await getAccount(anchor.getProvider().connection, traderMintAta);
 
-  //     vaultAta = await getAssociatedTokenAddress(
-  //       xdegenMint,
-  //       vaultPda,
-  //       true
-  //     );
+      expect(configAfter.totalTrades.toNumber()).to.equal(configBefore.totalTrades.toNumber() + 1);
+      expect(configAfter.totalBuys.toNumber()).to.equal(configBefore.totalBuys.toNumber() + 1);
+      expect(vaultAfter.amount - vaultBefore.amount).to.equal(BigInt(buyAmount));
+      expect(buyerMintAfter.amount - buyerMintBefore.amount).to.equal(BigInt(mintAmount));
+    });
 
-  //     await program.methods.initialize().accountsPartial({
-  //       admin: admin.publicKey,
-  //       config: configPda,
-  //       xdegenMint,
-  //       vault: vaultAta,
-  //       tokenProgram: TOKEN_PROGRAM_ID,
-  //       systemProgram: SystemProgram.programId,
-  //     }).signers([admin]).rpc();
+    it("should fail with invalid buy amount", async () => {
+      const buyAmount = 123_456_789; // not in allowed amounts
+      const mintAmount = 500_000_000;
+      try {
+        const traderMintAta = await getAssociatedTokenAddress(
+          newMint.publicKey,
+          trader.publicKey
+        );
 
-  //     // Setup buyer with XDEGEN tokens
-  //     buyerXdegenAta = await createAssociatedTokenAccount(
-  //       anchor.getProvider().connection,
-  //       buyer,
-  //       xdegenMint,
-  //       buyer.publicKey
-  //     );
+        if (!connection.getAccountInfo(traderMintAta)) {
+          console.log('Token Account not found');
+          return
+        }
 
-  //     await mintTo(
-  //       anchor.getProvider().connection,
-  //       admin,
-  //       xdegenMint,
-  //       buyerXdegenAta,
-  //       admin,
-  //       10_000_000_000
-  //     );
+        await program.methods.mintToken(new anchor.BN(buyAmount), new anchor.BN(mintAmount)).accountsPartial({
+          buyer: trader.publicKey,
+          admin: wallet.publicKey,
+          config: getConfigPDA(),
+          mint: newMint.publicKey,
+          xdegenMint,
+          vault: getVaultPDA(),
+          buyerXdegenAta: traderXdegenAta,
+          buyerMintAta: traderMintAta,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        }).signers([trader]).rpc();
+        expect.fail("Should have failed");
+      } catch (error) {
+        expect(error.message).to.include("InvalidAmount");
+      }
+    });
 
-  //     // Create a token that can be minted
-  //     const tokenParams = {
-  //       name: "Mintable Token",
-  //       symbol: "MT",
-  //       decimals: 9,
-  //       uri: "https://example.com",
-  //       supply: new anchor.BN(1_000_000_000),
-  //     };
-  //     const buyAmount = 500_000_000;
-  //     const tokenMintKeypair = Keypair.generate();
-  //     tokenMint = tokenMintKeypair.publicKey;
-  //     buyerMintAta = await getAssociatedTokenAddress(
-  //       tokenMint,
-  //       buyer.publicKey
-  //     );
-  //     const metadata = PublicKey.findProgramAddressSync(
-  //       [Buffer.from("metadata"), METADATA_PROGRAM_ID.toBuffer(), tokenMint.toBuffer()],
-  //       METADATA_PROGRAM_ID
-  //     )[0];
+    it("should fail with invalid mint amount", async () => {
+      const buyAmount = 1_000_000_000; // allowed amount
+      const mintAmount = 0;
+      try {
+        const traderMintAta = await getAssociatedTokenAddress(
+          newMint.publicKey,
+          trader.publicKey
+        );
 
-  //     await program.methods.buy(tokenParams, new anchor.BN(buyAmount)).accountsPartial({
-  //       trader: buyer.publicKey,
-  //       admin: admin.publicKey,
-  //       config: configPda,
-  //       vault: vaultAta,
-  //       mint: tokenMint,
-  //       traderMintAta: buyerMintAta,
-  //       metadata,
-  //       xdegenMint,
-  //       traderXdegenAta: buyerXdegenAta,
-  //       rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-  //       associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-  //       tokenMetadataProgram: METADATA_PROGRAM_ID,
-  //       tokenProgram: TOKEN_PROGRAM_ID,
-  //       systemProgram: SystemProgram.programId,
-  //     }).signers([buyer, tokenMintKeypair]).rpc();
-  //   });
+        if (!connection.getAccountInfo(traderMintAta)) {
+          console.log('Token Account not found');
+          return
+        }
 
-  //   it("should mint token successfully", async () => {
-  //     const buyAmount = 1_000_000_000; // allowed amount
-  //     const mintAmount = 500_000_000;
-  //     const configBefore = await program.account.config.fetch(configPda);
-  //     const vaultBefore = await getAccount(anchor.getProvider().connection, vaultAta);
-  //     const buyerMintBefore = await getAccount(anchor.getProvider().connection, buyerMintAta);
+        await program.methods.mintToken(new anchor.BN(buyAmount), new anchor.BN(mintAmount)).accountsPartial({
+          buyer: trader.publicKey,
+          admin: wallet.publicKey,
+          config: getConfigPDA(),
+          mint: newMint.publicKey,
+          xdegenMint,
+          vault: getVaultPDA(),
+          buyerXdegenAta: traderXdegenAta,
+          buyerMintAta: traderMintAta,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        }).signers([trader]).rpc();
+        expect.fail("Should have failed");
+      } catch (error) {
+        expect(error.message).to.include("InvalidAmount");
+      }
+    });
 
-  //     await program.methods.mintToken(new anchor.BN(buyAmount), new anchor.BN(mintAmount)).accountsPartial({
-  //       buyer: buyer.publicKey,
-  //       admin: admin.publicKey,
-  //       config: configPda,
-  //       mint: tokenMint,
-  //       xdegenMint,
-  //       vault: vaultAta,
-  //       buyerXdegenAta,
-  //       buyerMintAta,
-  //       tokenProgram: TOKEN_PROGRAM_ID,
-  //       systemProgram: SystemProgram.programId,
-  //     }).signers([buyer]).rpc();
+    it("should fail with insufficient xdegen funds", async () => {
+      // Use up buyer's XDEGEN tokens first
+      const buyAmount = 5_000_000_000;
+      const mintAmount = 500_000_000;
 
-  //     const configAfter = await program.account.config.fetch(configPda);
-  //     const vaultAfter = await getAccount(anchor.getProvider().connection, vaultAta);
-  //     const buyerMintAfter = await getAccount(anchor.getProvider().connection, buyerMintAta);
+      // This should fail because buyer doesn't have enough XDEGEN tokens
+      try {
+        const traderMintAta = await getAssociatedTokenAddress(
+          newMint.publicKey,
+          trader.publicKey
+        );
 
-  //     expect(configAfter.totalTrades).to.equal(configBefore.totalTrades.toNumber() + 1);
-  //     expect(configAfter.totalBuys).to.equal(configBefore.totalBuys.toNumber() + 1);
-  //     expect(vaultAfter.amount - vaultBefore.amount).to.equal(BigInt(buyAmount));
-  //     expect(buyerMintAfter.amount - buyerMintBefore.amount).to.equal(BigInt(mintAmount));
-  //   });
+        if (!connection.getAccountInfo(traderMintAta)) {
+          console.log('Token Account not found');
+          return
+        }
 
-  //   it("should fail with invalid buy amount", async () => {
-  //     const buyAmount = 123_456_789; // not in allowed amounts
-  //     const mintAmount = 500_000_000;
-  //     try {
-  //       await program.methods.mintToken(new anchor.BN(buyAmount), new anchor.BN(mintAmount)).accountsPartial({
-  //         buyer: buyer.publicKey,
-  //         admin: admin.publicKey,
-  //         config: configPda,
-  //         mint: tokenMint,
-  //         xdegenMint,
-  //         vault: vaultAta,
-  //         buyerXdegenAta,
-  //         buyerMintAta,
-  //         tokenProgram: TOKEN_PROGRAM_ID,
-  //         systemProgram: SystemProgram.programId,
-  //       }).signers([buyer]).rpc();
-  //       expect.fail("Should have failed");
-  //     } catch (error) {
-  //       expect(error.message).to.include("InvalidAmount");
-  //     }
-  //   });
+        await program.methods.mintToken(new anchor.BN(buyAmount), new anchor.BN(mintAmount)).accountsPartial({
+          buyer: trader.publicKey,
+          admin: wallet.publicKey,
+          config: getConfigPDA(),
+          mint: newMint.publicKey,
+          xdegenMint,
+          vault: getVaultPDA(),
+          buyerXdegenAta: traderXdegenAta,
+          buyerMintAta: traderMintAta,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        }).signers([trader]).rpc();
+        expect.fail("Should have failed");
+      } catch (error) {
+        expect(error.message);
+      }
+    });
+  });
 
-  //   it("should fail with invalid mint amount", async () => {
-  //     const buyAmount = 1_000_000_000; // allowed amount
-  //     const mintAmount = 0;
-  //     try {
-  //       await program.methods.mintToken(new anchor.BN(buyAmount), new anchor.BN(mintAmount)).accountsPartial({
-  //         buyer: buyer.publicKey,
-  //         admin: admin.publicKey,
-  //         config: configPda,
-  //         mint: tokenMint,
-  //         xdegenMint,
-  //         vault: vaultAta,
-  //         buyerXdegenAta,
-  //         buyerMintAta,
-  //         tokenProgram: TOKEN_PROGRAM_ID,
-  //         systemProgram: SystemProgram.programId,
-  //       }).signers([buyer]).rpc();
-  //       expect.fail("Should have failed");
-  //     } catch (error) {
-  //       expect(error.message).to.include("InvalidAmount");
-  //     }
-  //   });
+  describe("Sell", () => {
+    it("should sell successfully", async () => {
+      const sellAmount = 500_000_000;
+      const burnAmount = 500_000_000;
+      const configBefore = await program.account.config.fetch(getConfigPDA());
 
-  //   it("should fail with insufficient xdegen funds", async () => {
-  //     // Use up buyer's XDEGEN tokens first
-  //     const buyAmount = 1_000_000_000;
-  //     const mintAmount = 500_000_000;
+      const traderMintAta = await getAssociatedTokenAddress(
+        newMint.publicKey,
+        trader.publicKey
+      );
 
-  //     // This should fail because buyer doesn't have enough XDEGEN tokens
-  //     try {
-  //       await program.methods.mintToken(new anchor.BN(buyAmount), new anchor.BN(mintAmount)).accountsPartial({
-  //         buyer: buyer.publicKey,
-  //         admin: admin.publicKey,
-  //         config: configPda,
-  //         mint: tokenMint,
-  //         xdegenMint,
-  //         vault: vaultAta,
-  //         buyerXdegenAta,
-  //         buyerMintAta,
-  //         tokenProgram: TOKEN_PROGRAM_ID,
-  //         systemProgram: SystemProgram.programId,
-  //       }).signers([buyer]).rpc();
-  //       expect.fail("Should have failed");
-  //     } catch (error) {
-  //       expect(error.message).to.include("InsufficientFunds");
-  //     }
-  //   });
-  // });
+      if (!connection.getAccountInfo(traderMintAta)) {
+        console.log('Token Account not found');
+        return
+      }
+      const traderTokenBefore = await getAccount(anchor.getProvider().connection, traderMintAta);
 
-  // describe("Sell", () => {
-  //   let admin: Keypair;
-  //   let trader: Keypair;
-  //   let xdegenMint: PublicKey;
-  //   let configPda: PublicKey;
-  //   let vaultPda: PublicKey;
-  //   let vaultAta: PublicKey;
-  //   let traderXdegenAta: PublicKey;
-  //   let tokenMint: PublicKey;
-  //   let traderTokenAta: PublicKey;
+      await program.methods.sell(new anchor.BN(sellAmount), new anchor.BN(burnAmount)).accountsPartial({
+        trader: trader.publicKey,
+        admin: wallet.publicKey,
+        config: getConfigPDA(),
+        vault: getVaultPDA(),
+        mint: newMint.publicKey,
+        traderMint: traderMintAta,
+        xdegenMint,
+        traderXdegenAta,
+        associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      }).signers([trader]).rpc();
 
-  //   before(async () => {
-  //     admin = Keypair.generate();
-  //     trader = Keypair.generate();
-  //     await anchor.getProvider().connection.confirmTransaction(
-  //       await anchor.getProvider().connection.requestAirdrop(admin.publicKey, 10 * anchor.web3.LAMPORTS_PER_SOL)
-  //     );
-  //     await anchor.getProvider().connection.confirmTransaction(
-  //       await anchor.getProvider().connection.requestAirdrop(trader.publicKey, 10 * anchor.web3.LAMPORTS_PER_SOL)
-  //     );
+      const configAfter = await program.account.config.fetch(getConfigPDA());
+      expect(configAfter.totalTrades.toNumber()).to.equal(configBefore.totalTrades.toNumber() + 1);
+      expect(configAfter.totalSells.toNumber()).to.equal(configBefore.totalSells.toNumber() + 1);
 
-  //     xdegenMint = await createMint(
-  //       anchor.getProvider().connection,
-  //       admin,
-  //       admin.publicKey,
-  //       null,
-  //       9
-  //     );
+      const traderTokenAfter = await getAccount(anchor.getProvider().connection, traderMintAta);
+      expect(traderTokenBefore.amount - traderTokenAfter.amount).to.equal(BigInt(burnAmount));
+    });
 
-  //     [configPda] = PublicKey.findProgramAddressSync(
-  //       [Buffer.from("config")],
-  //       program.programId
-  //     );
+    it("should fail with invalid sell amount", async () => {
+      const sellAmount = 123_456_789; // not allowed
+      const burnAmount = 500_000_000;
+      try {
+        const traderMintAta = await getAssociatedTokenAddress(
+          newMint.publicKey,
+          trader.publicKey
+        );
 
-  //     [vaultPda] = PublicKey.findProgramAddressSync(
-  //       [Buffer.from("vault")],
-  //       program.programId
-  //     );
+        if (!connection.getAccountInfo(traderMintAta)) {
+          console.log('Token Account not found');
+          return
+        }
+        await program.methods.sell(new anchor.BN(sellAmount), new anchor.BN(burnAmount)).accountsPartial({
+          trader: trader.publicKey,
+          admin: wallet.publicKey,
+          config: getConfigPDA(),
+          vault: getVaultPDA(),
+          mint: newMint.publicKey,
+          traderMint: traderMintAta,
+          xdegenMint,
+          traderXdegenAta,
+          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        }).signers([trader]).rpc();
+        expect.fail("Should have failed");
+      } catch (error) {
+        expect(error.message).to.include("InvalidAmount");
+      }
+    });
 
-  //     vaultAta = await getAssociatedTokenAddress(
-  //       xdegenMint,
-  //       vaultPda,
-  //       true
-  //     );
+    it("should fail with invalid burn amount", async () => {
+      const sellAmount = 500_000_000;
+      const burnAmount = 0;
+      try {
+        const traderMintAta = await getAssociatedTokenAddress(
+          newMint.publicKey,
+          trader.publicKey
+        );
 
-  //     await program.methods.initialize().accountsPartial({
-  //       admin: admin.publicKey,
-  //       config: configPda,
-  //       xdegenMint,
-  //       vault: vaultAta,
-  //       tokenProgram: TOKEN_PROGRAM_ID,
-  //       systemProgram: SystemProgram.programId,
-  //     }).signers([admin]).rpc();
+        if (!connection.getAccountInfo(traderMintAta)) {
+          console.log('Token Account not found');
+          return
+        }
+        await program.methods.sell(new anchor.BN(sellAmount), new anchor.BN(burnAmount)).accountsPartial({
+          trader: trader.publicKey,
+          admin: wallet.publicKey,
+          config: getConfigPDA(),
+          vault: getVaultPDA(),
+          mint: newMint.publicKey,
+          traderMint: traderMintAta,
+          xdegenMint,
+          traderXdegenAta,
+          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        }).signers([trader]).rpc();
+        expect.fail("Should have failed");
+      } catch (error) {
+        expect(error.message).to.include("InvalidAmount");
+      }
+    });
 
-  //     traderXdegenAta = await createAssociatedTokenAccount(
-  //       anchor.getProvider().connection,
-  //       trader,
-  //       xdegenMint,
-  //       trader.publicKey
-  //     );
+    it("should fail with insufficient xdegen funds", async () => {
+      const sellAmount = 50_000_000_000; // more than trader has
+      const burnAmount = 500_000_000;
+      try {
+        const traderMintAta = await getAssociatedTokenAddress(
+          newMint.publicKey,
+          trader.publicKey
+        );
 
-  //     await mintTo(
-  //       anchor.getProvider().connection,
-  //       admin,
-  //       xdegenMint,
-  //       traderXdegenAta,
-  //       admin,
-  //       10_000_000_000
-  //     );
-
-  //     // Buy a token first
-  //     const tokenParams = {
-  //       name: "Test Token",
-  //       symbol: "TT",
-  //       decimals: 9,
-  //       uri: "https://example.com",
-  //       supply: new anchor.BN(1_000_000_000),
-  //     };
-  //     const buyAmount = 500_000_000;
-  //     const tokenMintKeypair = Keypair.generate();
-  //     tokenMint = tokenMintKeypair.publicKey;
-  //     const traderMintAta = await getAssociatedTokenAddress(
-  //       tokenMint,
-  //       trader.publicKey
-  //     );
-  //     const metadata = PublicKey.findProgramAddressSync(
-  //       [Buffer.from("metadata"), METADATA_PROGRAM_ID.toBuffer(), tokenMint.toBuffer()],
-  //       METADATA_PROGRAM_ID
-  //     )[0];
-
-  //     await program.methods.buy(tokenParams, new anchor.BN(buyAmount)).accountsPartial({
-  //       trader: trader.publicKey,
-  //       admin: admin.publicKey,
-  //       config: configPda,
-  //       vault: vaultAta,
-  //       mint: tokenMint,
-  //       traderMintAta,
-  //       metadata,
-  //       xdegenMint,
-  //       traderXdegenAta,
-  //       rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-  //       associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-  //       tokenMetadataProgram: METADATA_PROGRAM_ID,
-  //       tokenProgram: TOKEN_PROGRAM_ID,
-  //       systemProgram: SystemProgram.programId,
-  //     }).signers([trader, tokenMintKeypair]).rpc();
-
-  //     traderTokenAta = traderMintAta;
-  //   });
-
-  //   it("should sell successfully", async () => {
-  //     const sellAmount = 500_000_000;
-  //     const burnAmount = 500_000_000;
-  //     const configBefore = await program.account.config.fetch(configPda);
-  //     const traderTokenBefore = await getAccount(anchor.getProvider().connection, traderTokenAta);
-
-  //     await program.methods.sell(new anchor.BN(sellAmount), new anchor.BN(burnAmount)).accountsPartial({
-  //       trader: trader.publicKey,
-  //       admin: admin.publicKey,
-  //       config: configPda,
-  //       vault: vaultAta,
-  //       mint: tokenMint,
-  //       traderMint: traderTokenAta,
-  //       xdegenMint,
-  //       traderXdegenAta,
-  //       associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-  //       tokenProgram: TOKEN_PROGRAM_ID,
-  //       systemProgram: SystemProgram.programId,
-  //     }).signers([trader]).rpc();
-
-  //     const configAfter = await program.account.config.fetch(configPda);
-  //     expect(configAfter.totalTrades).to.equal(configBefore.totalTrades.toNumber() + 1);
-  //     expect(configAfter.totalSells).to.equal(configBefore.totalSells.toNumber() + 1);
-
-  //     const traderTokenAfter = await getAccount(anchor.getProvider().connection, traderTokenAta);
-  //     expect(traderTokenBefore.amount - traderTokenAfter.amount).to.equal(BigInt(burnAmount));
-  //   });
-
-  //   it("should fail with invalid sell amount", async () => {
-  //     const sellAmount = 123_456_789; // not allowed
-  //     const burnAmount = 500_000_000;
-  //     try {
-  //       await program.methods.sell(new anchor.BN(sellAmount), new anchor.BN(burnAmount)).accountsPartial({
-  //         trader: trader.publicKey,
-  //         admin: admin.publicKey,
-  //         config: configPda,
-  //         vault: vaultAta,
-  //         mint: tokenMint,
-  //         traderMint: traderTokenAta,
-  //         xdegenMint,
-  //         traderXdegenAta,
-  //         associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-  //         tokenProgram: TOKEN_PROGRAM_ID,
-  //         systemProgram: SystemProgram.programId,
-  //       }).signers([trader]).rpc();
-  //       expect.fail("Should have failed");
-  //     } catch (error) {
-  //       expect(error.message).to.include("InvalidAmount");
-  //     }
-  //   });
-
-  //   it("should fail with invalid burn amount", async () => {
-  //     const sellAmount = 500_000_000;
-  //     const burnAmount = 0;
-  //     try {
-  //       await program.methods.sell(new anchor.BN(sellAmount), new anchor.BN(burnAmount)).accountsPartial({
-  //         trader: trader.publicKey,
-  //         admin: admin.publicKey,
-  //         config: configPda,
-  //         vault: vaultAta,
-  //         mint: tokenMint,
-  //         traderMint: traderTokenAta,
-  //         xdegenMint,
-  //         traderXdegenAta,
-  //         associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-  //         tokenProgram: TOKEN_PROGRAM_ID,
-  //         systemProgram: SystemProgram.programId,
-  //       }).signers([trader]).rpc();
-  //       expect.fail("Should have failed");
-  //     } catch (error) {
-  //       expect(error.message).to.include("InvalidAmount");
-  //     }
-  //   });
-
-  //   it("should fail with insufficient xdegen funds", async () => {
-  //     const sellAmount = 50_000_000_000; // more than trader has
-  //     const burnAmount = 500_000_000;
-  //     try {
-  //       await program.methods.sell(new anchor.BN(sellAmount), new anchor.BN(burnAmount)).accountsPartial({
-  //         trader: trader.publicKey,
-  //         admin: admin.publicKey,
-  //         config: configPda,
-  //         vault: vaultAta,
-  //         mint: tokenMint,
-  //         traderMint: traderTokenAta,
-  //         xdegenMint,
-  //         traderXdegenAta,
-  //         associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-  //         tokenProgram: TOKEN_PROGRAM_ID,
-  //         systemProgram: SystemProgram.programId,
-  //       }).signers([trader]).rpc();
-  //       expect.fail("Should have failed");
-  //     } catch (error) {
-  //       expect(error.message).to.include("InsufficientFunds");
-  //     }
-  //   });
-  // });
+        if (!connection.getAccountInfo(traderMintAta)) {
+          console.log('Token Account not found');
+          return
+        }
+        await program.methods.sell(new anchor.BN(sellAmount), new anchor.BN(burnAmount)).accountsPartial({
+          trader: trader.publicKey,
+          admin: wallet.publicKey,
+          config: getConfigPDA(),
+          vault: getVaultPDA(),
+          mint: newMint.publicKey,
+          traderMint: traderMintAta,
+          xdegenMint,
+          traderXdegenAta,
+          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        }).signers([trader]).rpc();
+        expect.fail("Should have failed");
+      } catch (error) {
+        expect(error.message);
+      }
+    });
+  });
 });

@@ -1,13 +1,14 @@
 # Xdegen
 
-A Solana-based decentralized token trading platform built with Anchor framework. Xdegen enables users to buy, sell, mint, and trade tokens using the native XDEGEN token as the primary currency.
+A Solana-based decentralized token trading platform built with Anchor framework. Xdegen enables users to buy, sell, mint, and trade multiple unique tokens using the native XDEGEN token as the primary currency.
 
 ## Overview
 
 Xdegen is a sophisticated DeFi protocol that allows users to:
-- **Buy custom tokens** using XDEGEN tokens
+- **Buy custom tokens** using XDEGEN tokens with unique mint addresses
 - **Sell tokens** and receive XDEGEN tokens in return
-- **Mint new token types** with custom metadata
+- **Mint new token types** with custom metadata and unique addresses
+- **Multi-Token Support**: Traders can purchase unlimited different tokens
 - **Deposit and withdraw** XDEGEN tokens
 - **Claim rewards** from trading activities
 
@@ -16,6 +17,7 @@ Xdegen is a sophisticated DeFi protocol that allows users to:
 ### Core Functionality
 - **Token Trading**: Seamless buy/sell operations with XDEGEN as base currency
 - **Dynamic Token Creation**: Mint new SPL tokens with custom metadata via Metaplex
+- **Multi-Token Minting**: Support for unlimited unique token types per trader
 - **Vault Management**: Secure token storage and admin-controlled operations
 - **Trading Statistics**: Comprehensive tracking of trades, buys, sells, and claims
 
@@ -23,7 +25,7 @@ Xdegen is a sophisticated DeFi protocol that allows users to:
 - **Access Control**: Admin-only operations for critical functions
 - **Amount Validation**: Predefined allowed trading amounts (500M - 5B tokens)
 - **Overflow Protection**: Mathematical operation safeguards
-- **PDA Security**: Program-derived addresses for secure token minting
+- **Unique Token Addresses**: Each token gets a unique mint address for maximum flexibility
 
 ## Architecture
 
@@ -32,9 +34,9 @@ Xdegen is a sophisticated DeFi protocol that allows users to:
 programs/xdegen-demo/src/
 ├── lib.rs              # Main program entry point
 ├── instructions/       # Transaction handlers
-│   ├── buy.rs         # Token purchase logic
+│   ├── buy.rs         # Token purchase logic (supports multiple unique tokens)
 │   ├── sell.rs        # Token selling with burn mechanism
-│   ├── mint.rs        # New token creation
+│   ├── mint.rs        # Additional token minting (supports multiple tokens)
 │   ├── deposit.rs     # XDEGEN deposits
 │   ├── withdraw.rs    # XDEGEN withdrawals
 │   ├── claim.rs       # Reward claiming

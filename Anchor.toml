@@ -9,11 +9,14 @@ skip-lint = false
 [programs.localnet]
 xdegen_demo = "6hB6CiM1kT9vk58LJbgrBDVQdh47QSH3tq8HxaksguUq"
 
+[programs.devnet]
+xdegen_demo = "6hB6CiM1kT9vk58LJbgrBDVQdh47QSH3tq8HxaksguUq"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

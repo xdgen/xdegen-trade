@@ -21,7 +21,7 @@ use anchor_spl::{
 use crate::{error::ErrorCode, Config, TokenParams, ALLOWED_AMOUNTS};
 
 #[derive(Accounts)]
-#[instruction(data: TokenParams, new_mint: Pubkey)]
+#[instruction(data: TokenParams)]
 pub struct Buy<'info> {
     #[account(mut)]
     pub trader: Signer<'info>,
@@ -69,8 +69,7 @@ pub struct Buy<'info> {
 pub fn buy_handler(
     ctx: Context<Buy>, 
     data: TokenParams,
-    amount: u64,
-    new_mint: Pubkey
+    amount: u64
 ) -> Result<()> {
     let config = &mut ctx.accounts.config;
 

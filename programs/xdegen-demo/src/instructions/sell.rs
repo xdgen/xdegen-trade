@@ -29,11 +29,7 @@ pub struct Sell<'info> {
     pub config: Account<'info, Config>,
     #[account(mut)]
     pub vault: InterfaceAccount<'info, TokenAccount>,
-    #[account(
-        mut,
-        seeds = [b"trade_token", mint.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
     #[account(
         mut,
@@ -76,7 +72,7 @@ pub fn sell_handler(
                 from: ctx.accounts.trader_xdegen_ata.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
                 mint: ctx.accounts.xdegen_mint.to_account_info(),
-                authority: ctx.accounts.vault.to_account_info()
+                authority: ctx.accounts.trader.to_account_info()
             },
         ),
         sell_amount,
@@ -84,8 +80,8 @@ pub fn sell_handler(
     )?;
 
     msg!(
-        "Burn token supply {} from mint {}", 
-        burn_amount, 
+        "Burn token supply {} from mint {}",
+        burn_amount,
         ctx.accounts.mint.key()
     );
     burn(
@@ -93,7 +89,7 @@ pub fn sell_handler(
             ctx.accounts.token_program.to_account_info(),
             Burn {
                 mint: ctx.accounts.mint.to_account_info(),
-                authority: ctx.accounts.admin.to_account_info(),
+                authority: ctx.accounts.trader.to_account_info(),
                 from: ctx.accounts.trader_mint.to_account_info()
             }
         ),

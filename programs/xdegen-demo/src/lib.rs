@@ -31,9 +31,8 @@ pub mod xdegen_demo {
       ctx: Context<Buy>, 
       data: TokenParams, 
       amount: u64,
-      new_mint: Pubkey
     ) -> Result<()> {
-      buy_handler(ctx, data, amount, new_mint)
+      buy_handler(ctx, data, amount)
     }
 
     pub fn sell(ctx: Context<Sell>, sell_amount: u64, burn_amount: u64) -> Result<()> {

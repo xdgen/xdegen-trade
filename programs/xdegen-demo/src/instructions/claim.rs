@@ -42,8 +42,10 @@ pub fn claim_handler(ctx: Context<Claim>) -> Result<()> {
 
     require!(ctx.accounts.vault.amount >= config.claim_amount, ErrorCode::InsufficientFunds);
 
+    let mint = ctx.accounts.xdegen_mint.key();
     let signer_seeds: &[&[&[u8]]] = &[&[
         b"vault".as_ref(),
+        mint.as_ref(),
         &[config.vault_bump],
     ]];
 
