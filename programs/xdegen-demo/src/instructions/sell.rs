@@ -11,9 +11,14 @@ use anchor_spl::{
         Burn
     }
 };
+use ephemeral_rollups_sdk::{
+    anchor::commit, 
+    ephem::commit_accounts
+};
 
 use crate::{error::ErrorCode, Config, ALLOWED_AMOUNTS};
 
+#[commit]
 #[derive(Accounts)]
 pub struct Sell<'info> {
     #[account(mut)]
@@ -103,6 +108,13 @@ pub fn sell_handler(
     config.total_sells = config.total_sells
         .checked_add(1)
         .ok_or(ErrorCode::MathOverflow)?;
+
+    commit_accounts(
+        &ctx.accounts.admin, 
+        vec![&ctx.accounts.config.to_account_info()], 
+        &ctx.accounts.magic_context, 
+        &ctx.accounts.magic_program
+    )?;
 
     Ok(())
 }

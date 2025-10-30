@@ -52,7 +52,7 @@ pub fn mint_token_handler(ctx: Context<MintToken>, buy_amount: u64, mint_amount:
         Transfer funds {} from trader to vault {} for minting token {}", 
         buy_amount,
         ctx.accounts.vault.key(),
-        ctx.accounts.mint.key()
+        ctx.accounts.xdegen_mint.key()
     );
     transfer_checked(
         CpiContext::new(
@@ -65,7 +65,7 @@ pub fn mint_token_handler(ctx: Context<MintToken>, buy_amount: u64, mint_amount:
             }
         ),
         buy_amount,
-        ctx.accounts.mint.decimals
+        ctx.accounts.xdegen_mint.decimals
     )?;
 
     msg!(

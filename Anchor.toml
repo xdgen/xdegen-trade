@@ -6,11 +6,11 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-xdegen_demo = "6hB6CiM1kT9vk58LJbgrBDVQdh47QSH3tq8HxaksguUq"
-
 [programs.devnet]
-xdegen_demo = "6hB6CiM1kT9vk58LJbgrBDVQdh47QSH3tq8HxaksguUq"
+xdegen_demo = "E1EmVTx97Xdkma6Q8WQz1SB2GnmicP7iUdvoPiLicF74"
+
+[programs.localnet]
+xdegen_demo = "78FByh4yjYKC1K7DifjJAgefhCJb9t99EwC3wG6C3dwJ"
 
 [registry]
 url = "https://api.apr.dev"

@@ -18,3 +18,9 @@ pub use claim::*;
 
 pub mod mint;
 pub use mint::*;
+
+pub mod delegate_config;
+pub use delegate_config::*;
+
+pub mod undelegate_config;
+pub use undelegate_config::*;

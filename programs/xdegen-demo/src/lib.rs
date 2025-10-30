@@ -4,13 +4,15 @@ pub mod instructions;
 pub mod state;
 
 use anchor_lang::prelude::*;
+use ephemeral_rollups_sdk::anchor::{ephemeral};
 
 pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("6hB6CiM1kT9vk58LJbgrBDVQdh47QSH3tq8HxaksguUq");
+declare_id!("E1EmVTx97Xdkma6Q8WQz1SB2GnmicP7iUdvoPiLicF74");
 
+#[ephemeral]
 #[program]
 pub mod xdegen_demo {
     use super::*;
@@ -45,5 +47,13 @@ pub mod xdegen_demo {
 
     pub fn mint_token(ctx: Context<MintToken>, buy_amount: u64, mint_amount: u64) -> Result<()> {
       mint_token_handler(ctx, buy_amount, mint_amount)
+    }
+
+    pub fn delegate_config(ctx: Context<DelegateConfigInput>) -> Result<()> {
+      delegate_config_handler(ctx)
+    }
+
+    pub fn undelegate_config(ctx: Context<UndelegateConfigInput>) -> Result<()> {
+      undelegate_config_handler(ctx)
     }
 }

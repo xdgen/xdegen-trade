@@ -9,13 +9,19 @@ use anchor_spl::{
         transfer_checked,
     }
 };
+use ephemeral_rollups_sdk::{
+    anchor::commit, 
+    ephem::commit_accounts
+};
 
 use crate::{ Config, error::ErrorCode };
 
+#[commit]
 #[derive(Accounts)]
 pub struct Claim<'info> {
     #[account(mut)]
     pub claimer: Signer<'info>,
+    // delegated account
     #[account(
         mut,
         has_one = xdegen_mint @ ErrorCode::InvalidMint
@@ -67,6 +73,13 @@ pub fn claim_handler(ctx: Context<Claim>) -> Result<()> {
     config.total_claimed = config.total_claimed
         .checked_add(config.claim_amount)
         .ok_or(ErrorCode::MathOverflow)?;
+
+    commit_accounts(
+        &ctx.accounts.claimer, 
+        vec![&ctx.accounts.config.to_account_info()], 
+        &ctx.accounts.magic_context, 
+        &ctx.accounts.magic_program
+    )?;
 
     Ok(())
 }

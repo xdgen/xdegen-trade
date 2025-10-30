@@ -17,9 +17,14 @@ use anchor_spl::{
         TransferChecked
     }
 };
+use ephemeral_rollups_sdk::{
+    anchor::commit, 
+    ephem::commit_accounts
+};
 
 use crate::{error::ErrorCode, Config, TokenParams, ALLOWED_AMOUNTS};
 
+#[commit]
 #[derive(Accounts)]
 #[instruction(data: TokenParams)]
 pub struct Buy<'info> {
@@ -27,6 +32,7 @@ pub struct Buy<'info> {
     pub trader: Signer<'info>,
     #[account(mut, signer)]
     pub admin: SystemAccount<'info>,
+    // delegated account
     #[account(
         mut,
         has_one = vault,
@@ -152,6 +158,13 @@ pub fn buy_handler(
     config.total_buys = config.total_buys
         .checked_add(1)
         .ok_or(ErrorCode::MathOverflow)?;
+
+    commit_accounts(
+        &ctx.accounts.admin, 
+        vec![&ctx.accounts.config.to_account_info()], 
+        &ctx.accounts.magic_context, 
+        &ctx.accounts.magic_program
+    )?;
 
     Ok(())
 }
