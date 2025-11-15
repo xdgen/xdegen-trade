@@ -17,36 +17,34 @@ use anchor_spl::{
         TransferChecked
     }
 };
-use ephemeral_rollups_sdk::{
-    anchor::commit, 
-    ephem::commit_accounts
-};
+use session_keys::{Session, SessionToken};
+use crate::{ALLOWED_AMOUNTS, Config, TokenMetadata, TokenParams, TokenRecord, error::ErrorCode};
 
-use crate::{error::ErrorCode, Config, TokenParams, ALLOWED_AMOUNTS};
-
-#[commit]
-#[derive(Accounts)]
+#[derive(Accounts, Session)]
 #[instruction(data: TokenParams)]
 pub struct Buy<'info> {
+    #[session(
+       signer = trader,
+       authority = token_record.owner.key() 
+    )]
+    pub session_token: Option<Account<'info, SessionToken>>,
+
     #[account(mut)]
     pub trader: Signer<'info>,
-    #[account(mut, signer)]
-    pub admin: SystemAccount<'info>,
     // delegated account
     #[account(
         mut,
         has_one = vault,
-        has_one = admin @ ErrorCode::Unauthorized,
-        has_one = xdegen_mint @ ErrorCode::InvalidMint,
+        has_one = xdegen_mint,
+        seeds = [b"config"],
+        bump = config.bump
     )]
     pub config: Account<'info, Config>,
-    #[account(mut)]
-    pub vault: InterfaceAccount<'info, TokenAccount>,
     #[account(
         init,
         payer = trader,
         mint::decimals = data.decimals,
-        mint::authority = admin
+        mint::authority = trader
     )]
     pub mint: InterfaceAccount<'info, Mint>,
     #[account(
@@ -57,13 +55,24 @@ pub struct Buy<'info> {
         associated_token::token_program = token_program
     )]
     pub trader_mint_ata: InterfaceAccount<'info, TokenAccount>,
+    pub xdegen_mint: InterfaceAccount<'info, Mint>,
+    #[account(mut)]
+    pub vault: InterfaceAccount<'info, TokenAccount>,
+    #[account(mut)]
+    pub trader_xdegen_ata: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        init,
+        space = TokenRecord::INIT_SPACE,
+        payer = trader,
+        seeds = [b"token_record", trader.key().as_ref(), mint.key().as_ref()],
+        bump
+    )]
+    pub token_record: Account<'info, TokenRecord>,
+
     /// CHECK: Metaplex mint metdata
     #[account(mut)]
     pub metadata: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub xdegen_mint: InterfaceAccount<'info, Mint>,
-    #[account(mut)]
-    pub trader_xdegen_ata: InterfaceAccount<'info, TokenAccount>,
     
     pub rent: Sysvar<'info, Rent>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -83,12 +92,15 @@ pub fn buy_handler(
     require!(data.symbol.as_bytes().len() > 0, ErrorCode::SymbolLengthZero);
     require!(data.supply > 0, ErrorCode::InvalidSupply);
     require!(data.decimals <= 9, ErrorCode::InvalidDecimals);
+
     require!(
         amount > 0 && ALLOWED_AMOUNTS.contains(&amount), 
         ErrorCode::InvalidAmount
     );
-
-    require!(ctx.accounts.trader_xdegen_ata.amount > amount, ErrorCode::InsufficientFunds);
+    require!(
+        ctx.accounts.trader_xdegen_ata.amount > amount, 
+        ErrorCode::InsufficientFunds
+    );
 
     msg!("Transfer buy token to vault");
     transfer_checked(
@@ -105,24 +117,23 @@ pub fn buy_handler(
         ctx.accounts.xdegen_mint.decimals
     )?;
 
-
     msg!("Adding token metadata");
     create_metadata_accounts_v3(
         CpiContext::new(
         ctx.accounts.token_metadata_program.to_account_info(),
          CreateMetadataAccountsV3 {
             payer: ctx.accounts.trader.to_account_info(),
-            update_authority: ctx.accounts.admin.to_account_info(),
+            update_authority: ctx.accounts.trader.to_account_info(),
             mint: ctx.accounts.mint.to_account_info(),
-            mint_authority: ctx.accounts.admin.to_account_info(),
+            mint_authority: ctx.accounts.trader.to_account_info(),
             metadata: ctx.accounts.metadata.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             rent: ctx.accounts.rent.to_account_info()
         }),
         DataV2 {
-            name: data.name,
-            symbol: data.symbol,
-            uri: data.uri,
+            name: data.name.clone(),
+            symbol: data.symbol.clone(),
+            uri: data.uri.clone(),
             seller_fee_basis_points: 0,
             creators: None,
             collection: None,
@@ -144,7 +155,7 @@ pub fn buy_handler(
             MintToChecked {
                 mint: ctx.accounts.mint.to_account_info(),
                 to: ctx.accounts.trader_mint_ata.to_account_info(),
-                authority: ctx.accounts.admin.to_account_info()
+                authority: ctx.accounts.trader.to_account_info()
             }
         ), 
         data.supply, 
@@ -159,12 +170,19 @@ pub fn buy_handler(
         .checked_add(1)
         .ok_or(ErrorCode::MathOverflow)?;
 
-    commit_accounts(
-        &ctx.accounts.admin, 
-        vec![&ctx.accounts.config.to_account_info()], 
-        &ctx.accounts.magic_context, 
-        &ctx.accounts.magic_program
-    )?;
+    ctx.accounts.token_record.set_inner(TokenRecord {
+        mint: ctx.accounts.mint.key(),
+        owner: ctx.accounts.trader.key(),
+        balance: data.supply,
+        metadata: TokenMetadata {
+            name: data.name,
+            symbol: data.symbol,
+            uri: data.uri,
+            decimals: data.decimals,
+        },
+        created_at: Clock::get()?.unix_timestamp,
+        bump: ctx.bumps.token_record
+    });
 
     Ok(())
 }

@@ -4,17 +4,18 @@ pub mod instructions;
 pub mod state;
 
 use anchor_lang::prelude::*;
-use ephemeral_rollups_sdk::anchor::{ephemeral};
+use session_keys::{SessionError, Session, session_auth_or};
 
 pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("E1EmVTx97Xdkma6Q8WQz1SB2GnmicP7iUdvoPiLicF74");
+declare_id!("5eGtLMK9TktGR2sSFbnHarxhqio5Nh4ob9KfS8Tru7fF");
 
-#[ephemeral]
 #[program]
 pub mod xdegen_demo {
+    use crate::error::ErrorCode;
+
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -30,30 +31,34 @@ pub mod xdegen_demo {
     }
 
     pub fn buy(
-      ctx: Context<Buy>, 
-      data: TokenParams, 
-      amount: u64,
+      ctx: Context<Buy>,
+      data: TokenParams,
+      amount: u64
     ) -> Result<()> {
       buy_handler(ctx, data, amount)
     }
 
+    #[session_auth_or(
+      ctx.accounts.token_record.owner == ctx.accounts.trader.key(),
+      ErrorCode::Unauthorized
+    )]
+    pub fn mint_token(
+      ctx: Context<MintToken>, 
+      buy_amount: u64, 
+      mint_amount: u64
+    ) -> Result<()> {
+      mint_token_handler(ctx, buy_amount, mint_amount)
+    }
+
+    #[session_auth_or(
+      ctx.accounts.token_record.owner == ctx.accounts.trader.key(),
+      ErrorCode::Unauthorized
+    )]
     pub fn sell(ctx: Context<Sell>, sell_amount: u64, burn_amount: u64) -> Result<()> {
       sell_handler(ctx, sell_amount, burn_amount)
     }
 
     pub fn claim(ctx: Context<Claim>) -> Result<()> {
       claim_handler(ctx)
-    }
-
-    pub fn mint_token(ctx: Context<MintToken>, buy_amount: u64, mint_amount: u64) -> Result<()> {
-      mint_token_handler(ctx, buy_amount, mint_amount)
-    }
-
-    pub fn delegate_config(ctx: Context<DelegateConfigInput>) -> Result<()> {
-      delegate_config_handler(ctx)
-    }
-
-    pub fn undelegate_config(ctx: Context<UndelegateConfigInput>) -> Result<()> {
-      undelegate_config_handler(ctx)
     }
 }

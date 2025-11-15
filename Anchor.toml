@@ -7,16 +7,16 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-xdegen_demo = "E1EmVTx97Xdkma6Q8WQz1SB2GnmicP7iUdvoPiLicF74"
+xdegen_demo = "5eGtLMK9TktGR2sSFbnHarxhqio5Nh4ob9KfS8Tru7fF"
 
 [programs.localnet]
-xdegen_demo = "78FByh4yjYKC1K7DifjJAgefhCJb9t99EwC3wG6C3dwJ"
+xdegen_demo = "5eGtLMK9TktGR2sSFbnHarxhqio5Nh4ob9KfS8Tru7fF"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

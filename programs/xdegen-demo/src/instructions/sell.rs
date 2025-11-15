@@ -11,25 +11,26 @@ use anchor_spl::{
         Burn
     }
 };
-use ephemeral_rollups_sdk::{
-    anchor::commit, 
-    ephem::commit_accounts
-};
 
-use crate::{error::ErrorCode, Config, ALLOWED_AMOUNTS};
+use session_keys::{Session, SessionToken};
+use crate::{ALLOWED_AMOUNTS, Config, TokenRecord, error::ErrorCode};
 
-#[commit]
-#[derive(Accounts)]
+#[derive(Accounts, Session)]
 pub struct Sell<'info> {
+    #[session(
+       signer = trader,
+       authority = token_record.owner.key() 
+    )]
+    pub session_token: Option<Account<'info, SessionToken>>,
+
     #[account(mut)]
     pub trader: Signer<'info>,
-    #[account(mut)]
-    pub admin: SystemAccount<'info>,
     #[account(
         mut,
         has_one = vault,
-        has_one = admin @ ErrorCode::Unauthorized,
         has_one = xdegen_mint @ ErrorCode::InvalidMint,
+        seeds = [b"config"],
+        bump = config.bump
     )]
     pub config: Account<'info, Config>,
     #[account(mut)]
@@ -50,6 +51,13 @@ pub struct Sell<'info> {
         associated_token::authority = trader,
     )]
     pub trader_xdegen_ata: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+        mut,
+        seeds = [b"token_record", trader.key().as_ref(), mint.key().as_ref()],
+        bump
+    )]
+    pub token_record: Account<'info, TokenRecord>,
+
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>, 
@@ -61,6 +69,7 @@ pub fn sell_handler(
     burn_amount: u64
 ) -> Result<()> {
     let config = &mut ctx.accounts.config;
+    let token_record = &mut ctx.accounts.token_record;
 
     require!(
         sell_amount > 0 && ALLOWED_AMOUNTS.contains(&sell_amount), 
@@ -101,6 +110,10 @@ pub fn sell_handler(
         burn_amount
     )?;
 
+    token_record.balance = token_record.balance
+        .checked_sub(burn_amount)
+        .ok_or(ErrorCode::MathOverflow)?;
+
     config.total_trades = config.total_trades
         .checked_add(1)
         .ok_or(ErrorCode::MathOverflow)?;
@@ -108,13 +121,6 @@ pub fn sell_handler(
     config.total_sells = config.total_sells
         .checked_add(1)
         .ok_or(ErrorCode::MathOverflow)?;
-
-    commit_accounts(
-        &ctx.accounts.admin, 
-        vec![&ctx.accounts.config.to_account_info()], 
-        &ctx.accounts.magic_context, 
-        &ctx.accounts.magic_program
-    )?;
 
     Ok(())
 }
